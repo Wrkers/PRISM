@@ -4,9 +4,9 @@ Implementation of **PRISM: Lightweight Prior-Guided Segmentation of Incomplete M
 
 PRISM segments brain tumours from any non-empty subset of four MRI modalities. It combines a Progressive Shared Encoder (PSE), Mask-Aware Modal Fusion (MAMF), Cross-Scale Context Aggregation (CSCA), Lightweight Prior Bottleneck (LPB), and Prior-Guided Multi-Source Decoder (PGMSD).
 
-## Detailed model and training parameters
+## Detailed model parameters
 
-We provide more detailed model parameters and training settings in [PRISM_PARAMETERS.md](./PRISM_PARAMETERS.md), together with the consolidated data-processing and metric-verification tables. The document distinguishes archived audit settings from the current public implementation.
+We provide detailed model parameters, data-processing settings, and metric-verification tables in [PRISM_PARAMETERS.md](./PRISM_PARAMETERS.md).
 
 ## Installation
 
@@ -69,7 +69,7 @@ Checkpoints must match the model defined in this release. Private development ch
 | `preprocess.py`, `datasets.py`, `data/` | Preprocessing and data loading |
 | `train.py`, `losses.py`, `engine.py`, `presets.py` | Training, objective and runtime configuration |
 | `test.py`, `evaluate.py` | Evaluation and sliding-window inference |
-| `PRISM_PARAMETERS.md` | Detailed architecture, training settings, and data/metric verification |
+| `PRISM_PARAMETERS.md` | Detailed architecture and data/metric verification |
 
 ## License
 

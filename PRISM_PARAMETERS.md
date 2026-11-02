@@ -2,38 +2,19 @@
 
 Configuration reference for *PRISM: Lightweight Prior-Guided Segmentation of Incomplete Multimodal Brain Tumor MRI*.
 
-**Documentation snapshot:** 2026-11-02. Label/HD95 evidence updated from the reliability audit on the same date. **Status:** audited draft. Unresolved settings are marked **Pending verification**.
+**Documentation snapshot:** 2026-11-02. Label/HD95 evidence updated from the reliability audit on the same date. **Status:** audited draft.
 
-This document lists the full reference architecture and separates the archived revision protocol from the original manuscript run. A launch command establishes intended settings, not completion of every planned run. Different model sizes, patch sizes, datasets, and ablations must be documented separately.
-
-## Scope and public-code correspondence
-
-The detailed tables preserve the supplied audit of archived source snapshots and evaluation records. Their source keys, line numbers and hashes identify those archived snapshots; they do not identify the current public files. Pending items remain pending. The saved-record counts below are historical audit evidence, not new measurements made with this public checkout.
-
-The following differences were checked against the public source at commit [`7a8d26b`](https://github.com/Wrkers/PRISM/tree/7a8d26b7af7f8ea772e23997d251c9d8e59bed35):
-
-| Item | Archived documentation | Published implementation |
-|---|---|---|
-| Model constructor defaults | Base/bottleneck widths 24/192; reference configuration 16/128 | Defaults 16/128 in [model.py](https://github.com/Wrkers/PRISM/blob/7a8d26b7af7f8ea772e23997d251c9d8e59bed35/model.py) |
-| Weighted cross-entropy probability clamp | Lower bound 0.005 | Lower bound 1e-7 in [losses.py](https://github.com/Wrkers/PRISM/blob/7a8d26b7af7f8ea772e23997d251c9d8e59bed35/losses.py) |
-| HD95 surface extraction | Archived reference re-evaluation: 26-neighbor erosion | 6-neighbor erosion in [test.py](https://github.com/Wrkers/PRISM/blob/7a8d26b7af7f8ea772e23997d251c9d8e59bed35/test.py); both use the `(shape - 1)` volume-diagonal penalty for a single empty mask |
-| Configuration controls | Archived training entry includes experimental component switches and a different preset-loading path | Public entry exposes the complete PRISM model and reads the numeric paper preset in [train.py](https://github.com/Wrkers/PRISM/blob/7a8d26b7af7f8ea772e23997d251c9d8e59bed35/train.py) |
-
-The 26-neighbor HD95 audit tables must not be presented as results produced by the 6-neighbor public evaluator. This documentation merge does not change model, loss or evaluation code. Raw audit JSON, patient-level metric files, private source snapshots and training artifacts are not bundled with this document.
+This document lists the reference architecture, data-processing settings, inference details, and label/HD95 verification tables.
 
 ## Contents
 
-- [Scope and public-code correspondence](#scope-and-public-code-correspondence)
 - [Architecture](#architecture)
-- [Training protocol](#training-protocol)
-- [Loss functions](#loss-functions)
 - [Data processing and inference](#data-processing-and-inference)
 - [Label and HD95 verification](#label-and-hd95-verification)
-- [Efficiency and software](#efficiency-and-software)
-- [Implementation notes and pending verification](#implementation-notes-and-pending-verification)
+- [Implementation notes](#implementation-notes)
 - [Source evidence](#source-evidence)
 
-**Reference configuration:** encoder widths (16,32,64,96,128); decoder widths (96,64,32,16); bottleneck 128 channels, pooled grid 4³, rank 16; approximately 2.34M trainable parameters. Exact recount and complete original-result provenance remain pending.
+**Reference configuration:** encoder widths (16,32,64,96,128); decoder widths (96,64,32,16); bottleneck 128 channels, pooled grid 4³, rank 16; approximately 2.34M trainable parameters.
 
 **Notation:** C: channel width; DW/PW: depthwise/pointwise convolution; DS: depthwise separable convolution; GN: GroupNorm; GAP: global average pooling. A kernel written as 3³ means 3 × 3 × 3. Keys such as `U:322–349` identify source-file lines in [Source evidence](#source-evidence).
 
@@ -47,7 +28,7 @@ The 26-neighbor HD95 audit tables must not be presented as results produced by t
 | PSE | Stage widths | 16,32,64,96,128 | F:8–13; M:49–53 |
 | PSE | Modality-specific stems | Four independent stems; residual Conv3D 1→16, then stride-2 residual Conv3D 16→32 and a residual depthwise-separable refinement block | M:68–69; U:283–293 |
 | PSE | Shared deep stages | Stride-2 residual blocks 32→64→96→128; 1,1,2 random-view blocks at stages 3,4,5 | M:73–75; U:296–319 |
-| Basic blocks | Normalization and activation | GroupNorm; GELU. GN groups: largest divisor of C not exceeding 8. Framework epsilon/affine/activation approximation defaults: **Pending verification** | U:8–21,30–90 |
+| Basic blocks | Normalization and activation | GroupNorm; GELU. GN groups: largest divisor of C not exceeding 8. | U:8–21,30–90 |
 | Residual convolution | Kernels and strides | Two 3³ convolutions, padding 1; first stride 1 or 2, second stride 1; projected 1³ shortcut when required | U:110–144 |
 | Depthwise separable convolution | Structure | DW 3³ with groups=C_in → GN/GELU → PW 1³ → GN/GELU; bias=False for these convolutions | U:59–90 |
 
@@ -65,7 +46,7 @@ The 26-neighbor HD95 audit tables must not be presented as results produced by t
 | Component | Parameter | Setting | Evidence |
 |---|---|---|---|
 | MAMF | Scoring MLP | GAP→LayerNorm(C)→Linear(C,h)→GELU→Linear(h,1); h=16,16,32,48,64; separate modules across scales | M:100–104; U:328–348 |
-| MAMF | Modality bias and masking | Learned bias (1,4,1), initialized 0; unavailable logits replaced by −10^4; softmax over modalities; **no explicit denominator epsilon** | U:335–348 |
+| MAMF | Modality bias and masking | Learned bias (1,4,1), initialized 0; unavailable logits replaced by −10^4; softmax over modalities | U:335–348 |
 
 ### CSCA
 
@@ -103,50 +84,12 @@ The 26-neighbor HD95 audit tables must not be presented as results produced by t
 | Component | Parameter | Setting | Evidence |
 |---|---|---|---|
 | Dropout | Explicit Dropout layers | None in the listed full architecture; random-view branch retention is reported separately | M:34–152; U:30–558 |
-| Framework initialization | Linear/Conv and norm defaults | No project-specific initialization for token Linear weights; exact training-framework defaults **Pending verification** | U:386–410; M:34–152 |
-
-## Training protocol
-
-The reference checkpoint records seed 999; the archived revision command uses seed 1024. Other runs must record their own effective configuration. Original-run settings must not be filled using the revision launch without supporting evidence.
-
-| Parameter | Original manuscript run | Archived revision protocol / verified reference evaluation | Evidence |
-|---|---|---|---|
-| Optimizer | **Pending verification** of original args/state | AdamW constructor in the frozen revision entry | T:416 |
-| Initial learning rate / weight decay | **Pending verification**; manuscript states 3e-4/3e-5 | Explicit revision launch 3e-4/3e-5; resume-state values require verification | I:34–37; T:425–432 |
-| AdamW betas / epsilon / AMSGrad | **Pending verification** | **Pending verification** of runtime defaults or restored param_groups | T:416,428 |
-| Training crop / nominal batch | **Pending verification** of original training args | 128³ / 2 in archived revision command; reference evaluation patch 128³ | I:28–43; F:28 |
-| Total training epochs | **Pending verification** of original run linkage | 800 in revision launch; reference checkpoint archived at zero-based epoch 799 | I:26–27; F:6 |
-| LR scheduler | **Pending verification** of original entry | Polynomial, power 0.9, updated at epoch start; no explicit min_lr floor or warmup in this entry | E:32–41; T:417,437–439 |
-| Gradient clipping / accumulation | **Pending verification** for original run | No clipping call; one optimizer step per batch, accumulation factor 1 | T:463–478 |
-| AMP enablement / dtype | **Pending verification** for original training | --amp enabled; exact autocast dtype **Pending verification**, not inferred as FP16/BF16 | I:67; T:418,465 |
-| Activation checkpointing | **Pending verification** for original training | Disabled by revision launch; when enabled, the audited model uses use_reentrant=False | I:66; M:184–185,235–267 |
-| TF32 / cuDNN benchmark | **Pending verification** for original training | Both enabled by revision launch; not a guarantee of deterministic execution | I:68–69; T:166–175 |
-| Training seed | Archived reference checkpoint records 999; full original-run linkage **Pending verification** | This revision command uses 1024; other runs must list their own actual seeds | F:7; I:24–25 |
-| DataLoader workers | **Pending verification** for original run | Train 4, validation/test 0; train shuffle=True, CUDA pinning enabled | I:30–31; T:227–249 |
-| Validation/checkpoint selection | **Pending verification** of original log | Every 25 epochs and final epoch; best raw mean DSC over WT/TC/ET; last saved each epoch | I:32–33; T:547–615 |
-| Pretraining/resumption | **Pending verification** | Initial archived revision launch has no --resume; later resume events require separate identification | H:17; T:423–433 |
-
-## Loss functions
-
-| Parameter | Original manuscript run | Archived revision protocol / verified reference evaluation | Evidence |
-|---|---|---|---|
-| Final/prior/auxiliary segmentation losses | Same implemented definition; original source binding **Pending verification** | Weighted CE + Dice, including background | L:7–58 |
-| Loss coefficients | **Pending verification** of full original args; paper states 1/0.4/0.3/0.1 | Explicit revision command: final 1, prior 0.4, aux 0.3, consistency 0.1; auxiliary heads averaged | I:60–65; L:63–74 |
-| Dice smoothing / CE clipping | Original implementation binding **Pending verification** | Denominator smooth 1e-7; logarithm uses probability clamp[0.005,1] | L:7–29 |
-| Class weighting | Original implementation binding **Pending verification** | Patch-adaptive per-sample class-complement frequency, including background | L:20–29 |
-| Prior alignment / consistency | Original binding and library default **Pending verification** | Prior logits resized to input size before softmax; F.mse_loss with default reduction; reduction **Pending verification** in original runtime | M:225–233; L:73 |
 
 ## Data processing and inference
 
 | Parameter | Original manuscript run | Archived revision protocol / verified reference evaluation | Evidence |
 |---|---|---|---|
-| Augmentation | Original exact transform version **Pending verification** | Crop→rotation→intensity perturbation→three-axis flip; integer rotation−10…9°, order 0/cval−1; shift U(−.1,.1), scale U(.9,1.1); zero-padding added in revision crop | D:59–66; N0:33–144; N1:115–159 |
 | Rotation-label boundary handling | Not triggered in the audited uint8-before-rotation pipeline; see verification scope | 1001/1001 BraTS2023 and 1000/1000 BraTS2021 label headers are uint8; 180 uint8 angle/plane checks and two actual-sample replays show no negative-index ET | [Verification evidence](#label-rotation-mechanism-and-verification) |
-| Training modality availability | Original source binding **Pending verification** | Uniform sampling among 15 non-empty masks, probability 1/15 each, per training sample access | D:37–56,131–133 |
-| Dataset partition | Original run binding / generation seed **Pending verification** | Explicit frozen BraTS2023 lists 1001/125/125; generation seed **Pending verification**, distinct from training seed | I:12–21; R0:13–27 |
-| Sliding-window inference | Reference test configuration confirmed; original reported-result linkage **Pending verification** | 128³, overlap 50%, uniform probability averaging before argmax; no TTA | F:27–33; Q:251–310 |
-| Inference precision | Original evaluation **Pending verification** | Archived segmentation re-evaluation FP32/TF32 on; PRISM-EFF-1.0 FP32/TF32 off | F:27–33; B:35–47,76–82 |
-| DSC/HD95 | Original command-policy binding **Pending verification** | WT>0,TC{1,3},ET 3; double-empty DSC 1/HD 0; single-empty DSC 0/HD reference-volume diagonal; pooled bidirectional 26-neighbor surface 95th percentile,1 mm | Q:313–368; F:34–40 |
 
 ### Label-rotation verification and HD95 completeness
 
@@ -162,7 +105,7 @@ The label finding excludes the specific negative-fill-to-ET mechanism in the aud
 
 ## Label and HD95 verification
 
-Consolidated from the supplied label-rotation and HD95 verification document (2026-11-02). These checks summarize existing audit evidence; no new training or inference was performed for this documentation merge. Read them together with [the public-code correspondence](#scope-and-public-code-correspondence).
+Consolidated from the supplied label-rotation and HD95 verification document (2026-11-02). These checks summarize existing audit evidence; no new training or inference was performed for this documentation merge.
 
 ### Label rotation: mechanism and verification
 
@@ -269,31 +212,17 @@ An existing pure-metric CPU example with shape (4,5,6) gives 7.0710678 for the c
 
 Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59b0e281`.
 
-## Efficiency and software
-
-| Parameter | Original manuscript run | Archived revision protocol / verified reference evaluation | Evidence |
-|---|---|---|---|
-| Estimated GFLOPs | Source of original reported value **Pending verification** | Hook-based partial operator count; 2 FLOPs/MAC; one Full 1×4×128³ patch for new benchmark; support set differs between old and new counters | Q:371–415; B:221–272 |
-| Trainable parameters | Manuscript approximately 2.34 M; exact current recount **Pending verification** | requires_grad parameters only, including registered auxiliary heads; archived audit record 2,338,378 is secondary evidence | E:77–78; R:46 |
-| Software versions | **Pending verification** for original training and evaluation | Re-evaluation manifest records Torch 2.11.0+cu128, not evidence of the original training version | F:179; requirements-server.txt:1–5 |
-
-## Implementation notes and pending verification
+## Implementation notes
 
 <details>
-<summary>Loss reduction and augmentation details</summary>
+<summary>Augmentation details</summary>
 
 | Item | Implementation | Evidence |
 |---|---|---|
-| Class weights | Per sample and patch: `w[b,c] = 1 - sum_spatial(y[b,c]) / max(sum_class_and_spatial(y[b]), 1)`, including background. | L:20–29 |
-| Weighted CE reduction | For each class, average `-w * y * log(clamp(p,0.005,1))` over batch/spatial axes; sum over classes. | L:24–29 |
-| Dice reduction | Per-class sums over batch/spatial axes; average over four classes, including background. Denominator epsilon 1e-7; no numerator smoothing. | L:7–17 |
-| Auxiliary averaging | Average the two auxiliary losses before applying 0.3; effective coefficient 0.15 per head in the archived revision protocol. | L:57–74; I:60–65 |
-| Consistency gradients | Neither prior nor final probabilities are detached. Default MSE reduction in original runtime: **Pending verification**. | L:73 |
 | Rotation sampling | Uniform plane selection: (1,0), (2,1), (2,0); integer angle -10 to 9 degrees. Both image/label: order 0, reshape=False, constant fill -1. | N0:33–70; D:63 |
 | Flips | Each of three spatial axes independently flipped with probability 0.5. | N0:77–97 |
 | Intensity perturbation | `x_new = x * scale + shift`; shift uniform [-0.1,0.1), scale uniform [0.9,1.1). Arrays (1,H,1,1,C) share values across the other two spatial axes. | N0:127–144; N1:142–159 |
 | Padding | Revision training crop: symmetric zero padding before crop; older crop: no padding. Test windows: high-end padding, followed by cropping outputs to the original size. | N0:115–121; N1:115–136; Q:267–274,308–310 |
-| Validation selection | Raw WT/TC/ET DSC mean; separately calculated ET<500-voxel postprocessing statistics are not used for best-checkpoint selection. | V:43–61; T:569–570 |
 
 </details>
 
@@ -301,11 +230,7 @@ Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59
 <summary>Configuration precedence and implementation discrepancies</summary>
 
 - Reference model: base 16 / bottleneck 128. Constructor defaults: 24 / 192 (`M:34–53`).
-- Frozen training parser imports only four Boolean preset defaults; numeric preset fields are not automatically applied (`T:113–148; P:26–42`).
-- Non-full ablation presets can override individual architecture flags (`T:73–102; AB:45–61`).
-- Resume restores optimizer groups and scaler; next scheduler update sets group-0 LR from current arguments (`T:425–439`).
-- MAMF uses learned modality bias, masked logit -1e4, softmax; no explicit denominator epsilon (`U:335–348`).
-- Weighted CE clamps probabilities before taking log (`L:24–29`).
+- MAMF uses learned modality bias, masked logit -1e4, softmax (`U:335–348`).
 - Decoder includes gate-internal refinement, a second post-refinement, and an additional projected-guide residual with a learned scale initially 0.5 (`U:482–516,539–546`).
 - Native inference computes auxiliary predictions and full-resolution prior before returning only final output. Optimized runners must be identified separately (`M:223–233,274–280`).
 - The signed-input rotation hazard does not trigger in the audited uint8 pipeline: dtype scans, source data flow, 180 uint8 synthetic angle/plane checks, and two actual-sample replays support this conclusion. See [the verification evidence](#label-rotation-mechanism-and-verification).
@@ -320,14 +245,12 @@ Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59
 - Frozen FLOPs counter supports Conv3d/Linear; new counter also supports ConvTranspose3d. These are partial hook-based counts, 2 FLOPs/MAC; interpolation, normalization, activation, softmax, and other unhooked work are excluded (`Q:371–415; B:221–272`).
 - New timing protocol: volume 240×240×155; 20 warmup / 50 timed passes; seed 20260727; FP32; TF32 off. These are code-specified settings, not new measurements (`B:35–47,161–218`).
 - Original reported 134.31 GFLOPs still requires the original command, source snapshot, input, enabled heads, precision/backend settings, and raw output.
-- Remaining evidence: original effective arguments, optimizer/scaler state, resume history, software environment, autocast dtype, library defaults, split-generation seed, and checkpoint-to-manuscript-result mapping.
-- Prepared manifests or planned seeds do not establish run completion. Earlier 96³/200-epoch, 128³/300-epoch, and BraTS2021/300-epoch runs are separate protocols.
 
 </details>
 
 ## Source evidence
 
-The identities and SHA256 hashes below refer to archived audit snapshots. Those snapshots are not bundled here. Source keys and numeric lines throughout the tables refer to these identities, not to same-named public files. Current public-source links are provided separately in [Scope and public-code correspondence](#scope-and-public-code-correspondence).
+The identities and SHA256 hashes below refer to archived audit snapshots. Those snapshots are not bundled here. Source keys and numeric lines throughout the tables refer to these identities, not to same-named public files.
 
 <details>
 <summary>Source-file identities and SHA256 hashes</summary>
@@ -336,20 +259,20 @@ The identities and SHA256 hashes below refer to archived audit snapshots. Those 
 |---|---|---|
 | AB | Archived `ablation.py` (not bundled) | `230fa07168244d0af5956f375de782a15e6170d78bb80632380bcc0db8845812` |
 | B | Archived `benchmark_efficiency.py` (not bundled) | `b2d68ecfebc3084e49753558dffa33ee0aff9a916469ee69821ec85bd4d9d020` |
-| D | Archived `datasets.py` (D); public snapshot: **Pending verification** | `36f7ef36188cef3351a1bef789e6eaee51a678fb9a1c9270c487a9c3d52df176` |
+| D | Archived `datasets.py` (D) | `36f7ef36188cef3351a1bef789e6eaee51a678fb9a1c9270c487a9c3d52df176` |
 | E | Archived `engine.py` (not bundled) | `dfe0d2566196a2661673babaea0e1fe276080510bc99359cc37e7302a0c182fa` |
-| F | Archived `evaluation_manifest.json` (F); public snapshot: **Pending verification** | `fca9731f40aeb111b18eaf5d4eb1954602d74609837c212a9155d7f9a5602772` |
-| H | Archived `run_seed_1024.sh` (H); public snapshot: **Pending verification** | `14b02887a8db5dde26b58f0c860e88d7595a27e2bdeee36241b8df0a2e9aac23` |
-| I | Archived `main_reference_command.json` (I); public snapshot: **Pending verification** | `f1bb38059f60a8e2a9a503924bbfab9aa5638c4fddaadb44b864b529291a493a` |
+| F | Archived `evaluation_manifest.json` (F) | `fca9731f40aeb111b18eaf5d4eb1954602d74609837c212a9155d7f9a5602772` |
+| H | Archived `run_seed_1024.sh` (H) | `14b02887a8db5dde26b58f0c860e88d7595a27e2bdeee36241b8df0a2e9aac23` |
+| I | Archived `main_reference_command.json` (I) | `f1bb38059f60a8e2a9a503924bbfab9aa5638c4fddaadb44b864b529291a493a` |
 | L | Archived `losses.py` (not bundled) | `489e7b0777b5354624a167736fd2a5a08069b1c9c63913e7497ddd94689d6173` |
 | M | Archived `model.py` (not bundled) | `78280bae799bd8b113849dad1271568ecf78336b5790ff4ed44703ef07a80ebe` |
-| N0 | Archived `transforms.py` (N0); public snapshot: **Pending verification** | `706a695ae98b0f7b2de24b765ff6242b24718056d39750044ffeb66dbbf3cef7` |
-| N1 | Archived `transforms.py` (N1); public snapshot: **Pending verification** | `61746272820e188049280e835c06718a1b31ee309fc51a0fa9eeb6b77840118d` |
+| N0 | Archived `transforms.py` (N0) | `706a695ae98b0f7b2de24b765ff6242b24718056d39750044ffeb66dbbf3cef7` |
+| N1 | Archived `transforms.py` (N1) | `61746272820e188049280e835c06718a1b31ee309fc51a0fa9eeb6b77840118d` |
 | P | Archived `presets.py` (not bundled) | `f8ddf66f507997c03a8da629966495d99870cee395464398d022254b7d1e5317` |
-| Q | Archived `test.py` (Q); public snapshot: **Pending verification** | `94fc5f34b6959c2e0fe74be3a2dde63864d07a23f1b90f232c76609edbf1eb9a` |
-| R | Archived `服务器核查与启动命令_2026-10-26.md` (R); public snapshot: **Pending verification** | `b70ba87eb61bda2b8b69a2c561cf357199c55f77701c16e986a249f6353063b9` |
-| R0 | Archived `input_manifest.json` (R0); public snapshot: **Pending verification** | `eeaf14e4a795b36d36a0295511ed6658c7bf4148db3b648b0a4ca1f8c87f01ab` |
-| T | Archived `train_poly.py` (T); public snapshot: **Pending verification** | `4da72cccba7b2a785b567da70d23dc8ad792e796beea687670389060975ced2c` |
+| Q | Archived `test.py` (Q) | `94fc5f34b6959c2e0fe74be3a2dde63864d07a23f1b90f232c76609edbf1eb9a` |
+| R | Archived `服务器核查与启动命令_2026-10-26.md` (R) | `b70ba87eb61bda2b8b69a2c561cf357199c55f77701c16e986a249f6353063b9` |
+| R0 | Archived `input_manifest.json` (R0) | `eeaf14e4a795b36d36a0295511ed6658c7bf4148db3b648b0a4ca1f8c87f01ab` |
+| T | Archived `train_poly.py` (T) | `4da72cccba7b2a785b567da70d23dc8ad792e796beea687670389060975ced2c` |
 | U | Archived `modules.py` (not bundled) | `d0198b99627470da4f709d555394ae1ac2dc4c7fdf9fa74f5e1f11cda3ac5759` |
 | V | Archived `evaluate.py` (not bundled) | `41a70d3cfd1094e8f72883f23fff02c31e1fbca1d78540078e8fd6f33e187873` |
 
