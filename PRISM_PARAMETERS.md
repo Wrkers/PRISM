@@ -181,29 +181,6 @@ Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; 
 
 GT-nonempty filtering does not remove false-negative predictions. Report all-case and GT-nonempty results as a pair from the same evaluation; do not attach new GT-nonempty means to older all-case numbers obtained under another protocol.
 
-### Why historical HD95 numbers cannot be relabeled
-
-The existing audit establishes actual protocol differences, not merely alternative defaults:
-
-| Record / implementation | Single-empty handling | Surface definition | Consequence |
-|---|---|---|---|
-| Historical main-test reports | NaN; actual nonzero NaN counts recorded | Must bind the individual historical implementation | Single-empty records can be omitted from means; this is not equivalent to the current penalty |
-| Historical ablation implementation | `norm(shape * spacing)` | 6-neighbor surface | Both the penalty and finite-mask surface distances can differ from the current definition |
-| Archived reference re-evaluation | `norm((shape - 1) * spacing)` | 26-neighbor surface | Explicit finite penalty and complete patient-level records |
-
-An existing pure-metric CPU example with shape (4,5,6) gives 7.0710678 for the current penalty and 8.7749644 for the old penalty. Another stored example gives 26-neighbor HD95=1.6366996 and 6-neighbor HD95=1.7320508. These examples show non-equivalence; they are not estimates of the historical result changes.
-
-### Resolution using existing outputs first
-
-1. Use one explicitly specified protocol for every result being directly compared. The table above documents the archived reference protocol; this documentation update does not change any evaluation code.
-2. Reuse complete patient-level outputs already obtained under that exact protocol. The two reference analyses above have complete, finite records.
-3. For legacy outputs, if only NaN omission differs and identical surface-distance geometry is established, complete per-case records plus empty-case flags, shapes, and spacing can support correcting penalties and re-aggregation without inference.
-4. If 6-neighbor and 26-neighbor geometry differ, scalar HD95 values cannot generally be converted. Recompute metrics from saved prediction masks and ground truth. This needs no model forward pass or retraining.
-5. If only legacy summary means remain and prediction masks are unavailable, those summaries do not determine the corrected result. Inference would need separate scheduling; nothing was launched here.
-6. Report all-case and GT-nonempty metrics together, preserve completely missed regions, disclose changed metric conventions, and regenerate the affected tables and textual comparisons from the unified outputs.
-
-**Status:** uint8-pipeline evidence and the two reference-record checks are documented. Harmonization of every historical table is not claimed complete.
-
 ### Evidence files
 
 - Stored synthetic CPU checks (`rotation_and_hd95_synthetic_checks.json`; archived evidence, not bundled): copied unchanged from the existing audit; includes positive controls and angle sweeps.
@@ -234,7 +211,7 @@ Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59
 - Decoder includes gate-internal refinement, a second post-refinement, and an additional projected-guide residual with a learned scale initially 0.5 (`U:482–516,539–546`).
 - Native inference computes auxiliary predictions and full-resolution prior before returning only final output. Optimized runners must be identified separately (`M:223–233,274–280`).
 - The signed-input rotation hazard does not trigger in the audited uint8 pipeline: dtype scans, source data flow, 180 uint8 synthetic angle/plane checks, and two actual-sample replays support this conclusion. See [the verification evidence](#label-rotation-mechanism-and-verification).
-- Historical HD95 reports actually used NaN omission, and legacy ablations also used a different surface definition/diagonal. Current reference records use finite penalties with 26-neighbor surfaces. See [the protocol and resolution](#hd95-the-protocol-that-must-be-stated-explicitly); harmonization of historical tables is not claimed complete.
+- The archived reference HD95 protocol uses finite penalties with 26-neighbor surfaces. See [the metric definition](#hd95-the-protocol-that-must-be-stated-explicitly).
 
 </details>
 
