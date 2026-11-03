@@ -17,7 +17,7 @@ _PAPER_PRESET = {
     "bottleneck_channels": 128,
     "latent_rank": 16,
     "pooled_size": 4,
-    "use_checkpoint": False,
+    "use_checkpoint": True,
     "amp": True,
     "tf32": True,
     "cudnn_benchmark": True,
