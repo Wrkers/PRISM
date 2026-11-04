@@ -165,7 +165,7 @@ HD95 with empty masks uses an explicit evaluation convention. The volume-diagona
 
 #### All-case and GT-nonempty results
 
-The table uses archived PRISM checkpoints from seed 999 at epoch 800 for BraTS2023 and epoch 300 for BraTS2021. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
+The table uses archived PRISM checkpoints from seed 999 for BraTS2023 and BraTS2021. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
 
 For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
 
