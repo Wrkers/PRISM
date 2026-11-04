@@ -163,6 +163,21 @@ HD95 with empty masks uses an explicit evaluation convention. The volume-diagona
 | Non-empty-GT subset | Select using ground truth only, separately for WT/TC/ET; completely missed non-empty regions remain included |
 | Aggregation | Case mean within each pattern and region; equal-weight mean over the 15 patterns when reporting All-15 |
 
+#### All-case and GT-nonempty results
+
+The table uses archived PRISM checkpoints from seed 999 at epoch 800 for BraTS2023 and epoch 300 for BraTS2021. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
+
+For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
+
+| Dataset | Region | GT-nonempty patients / total | All-case DSC (%) | GT-nonempty DSC (%) | All-case HD95 (mm) | GT-nonempty HD95 (mm) |
+|---|---|---:|---:|---:|---:|---:|
+| BraTS2023 | WT | 125 / 125 | 89.82 | 89.82 | 5.94 | 5.94 |
+| BraTS2023 | TC | 124 / 125 | 84.33 | 84.36 | 9.85 | 9.51 |
+| BraTS2023 | ET | 124 / 125 | 76.66 | 76.64 | 11.49 | 11.16 |
+| BraTS2021 | WT | 125 / 125 | 89.65 | 89.65 | 5.51 | 5.51 |
+| BraTS2021 | TC | 125 / 125 | 83.49 | 83.49 | 6.73 | 6.73 |
+| BraTS2021 | ET | 121 / 125 | 71.93 | 73.81 | 13.81 | 7.24 |
+
 #### Saved-record verification
 
 The following numbers were read from existing patient-metric CSVs; no predictions were recomputed. A record is one patient × one pattern × one region, not a unique patient.
