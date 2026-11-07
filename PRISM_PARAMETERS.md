@@ -163,9 +163,29 @@ HD95 with empty masks uses an explicit evaluation convention. The volume-diagona
 | Non-empty-GT subset | Select using ground truth only, separately for WT/TC/ET; completely missed non-empty regions remain included |
 | Aggregation | Case mean within each pattern and region; equal-weight mean over the 15 patterns when reporting All-15 |
 
+#### Current BraTS2023 partition and ground-truth region counts
+
+The BraTS2023 patient-disjoint partition was audited on 2026-11-07. Patient identifiers group all time points of the same patient. Training, validation and test sets have no overlapping scan identifiers or patient identifiers.
+
+| Partition | Scans | Unique patients |
+|---|---:|---:|
+| Training | 875 | 757 |
+| Validation | 125 | 125 |
+| Testing | 249 | 249 |
+| Total | 1249 | 1131 |
+
+The current BraTS2023 counts below were obtained by reading all 249 test segmentation masks. WT contains labels greater than 0, TC contains labels 1 or 3, and ET contains label 3. ET is empty in 12 cases (4.82%).
+
+| Dataset / cohort | Total patients | WT non-empty GT | TC non-empty GT | ET non-empty GT |
+|---|---:|---:|---:|---:|
+| BraTS2023, current patient-disjoint test cohort | 249 | 249 | 249 | 237 |
+| BraTS2021, archived evaluation cohort | 125 | 125 | 125 | 121 |
+
+These are ground-truth counts for the specified cohorts. The archived BraTS2023 metric results below use a separate 125-case cohort, which shares 32 cases with the current 249-case test cohort.
+
 #### All-case and GT-nonempty results
 
-The table uses archived PRISM checkpoints from seed 999 for BraTS2023 and BraTS2021. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
+The table uses archived PRISM checkpoints from seed 999 for BraTS2023 and BraTS2021. Each archived evaluation contains 125 cases. The BraTS2023 DSC and HD95 columns describe that archived 125-case evaluation. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
 
 For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
 
@@ -188,11 +208,6 @@ The following numbers were read from existing patient-metric CSVs; no prediction
 | BraTS2021 | 125 | 15 | 5625 | 81 | 9 | 0 | 30 |
 
 Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; every double-empty record has DSC=1 and HD95=0. The recorded single-empty counts by region are WT/TC/ET = 8/41/55 for BraTS2023 and 0/12/69 for BraTS2021.
-
-| Dataset | Total patients | WT non-empty GT | TC non-empty GT | ET non-empty GT |
-|---|---:|---:|---:|---:|
-| BraTS2023 | 125 | 125 | 124 | 124 |
-| BraTS2021 | 125 | 125 | 125 | 121 |
 
 GT-nonempty filtering does not remove false-negative predictions. Report all-case and GT-nonempty results as a pair from the same evaluation; do not attach new GT-nonempty means to older all-case numbers obtained under another protocol.
 
