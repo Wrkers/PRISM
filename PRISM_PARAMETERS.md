@@ -2,7 +2,7 @@
 
 Configuration reference for *PRISM: Lightweight Prior-Guided Segmentation of Incomplete Multimodal Brain Tumor MRI*.
 
-**Documentation snapshot:** 2026-11-02. Label/HD95 evidence updated from the reliability audit on the same date. **Status:** audited draft.
+**Documentation snapshot:** 2026-11-08, current-partition BraTS2023 re-audit and reference evaluation. **Status:** verified label coverage, augmentation replays and complete 249-case metrics.
 
 This document lists the reference architecture, data-processing settings, inference details, and label/HD95 verification tables.
 
@@ -87,25 +87,25 @@ This document lists the reference architecture, data-processing settings, infere
 
 ## Data processing and inference
 
-| Parameter | Original manuscript run | Archived revision protocol / verified reference evaluation | Evidence |
+| Parameter | Original manuscript run | Verified reference evaluation | Evidence |
 |---|---|---|---|
-| Rotation-label boundary handling | Not triggered in the audited uint8-before-rotation pipeline; see verification scope | 1001/1001 BraTS2023 and 1000/1000 BraTS2021 label headers are uint8; 180 uint8 angle/plane checks and two actual-sample replays show no negative-index ET | [Verification evidence](#label-rotation-mechanism-and-verification) |
+| Rotation-label boundary handling | Not triggered in the audited uint8-before-rotation pipeline; see verification scope | 875/875 BraTS2023 and 1000/1000 BraTS2021 label headers are uint8; 180 uint8 angle/plane checks and two actual-sample replays show no negative-index ET | [Verification evidence](#label-rotation-mechanism-and-verification) |
 
 ### Label-rotation verification and HD95 completeness
 
 | Check | Verified result | Detailed evidence |
 |---|---|---|
-| Label dtype coverage | BraTS2023: 1001/1001 uint8; BraTS2021: 1000/1000 uint8 | [Dtype and data-flow evidence](#label-rotation-mechanism-and-verification) |
+| Label dtype coverage | BraTS2023: 875/875 uint8; BraTS2021: 1000/1000 uint8 | [Dtype and data-flow evidence](#label-rotation-mechanism-and-verification) |
 | Rotation mechanism | uint8 retained through rotation; conversion to int64 occurs afterward; tested boundary fill becomes background 0 | [Mechanism and scope](#label-rotation-mechanism-and-verification) |
 | Synthetic checks | 180 uint8 angle/plane checks across three implementations; zero negative labels | Saved checks (`rotation_and_hd95_synthetic_checks.json`; archived evidence, not bundled) |
-| Actual training-input replay | Two 128³ samples; negative labels 0/0; class-3 counts 7353→7353 and 12514→12514 through one-hot encoding | [Replay table](#actual-sample-replay) |
-| Reference HD95 completeness | BraTS2023/BraTS2021: 5625/5625 region-level records each; non-finite HD95 0/0; single-empty records 104/81 retained | [Saved-record verification](#saved-record-verification) |
+| Actual training-input replay | Two samples from the current 875-scan training partition, cropped to 128³; negative labels 0/0; class-3 counts 22600→22600 and 24256→24256 through one-hot encoding | [Replay table](#actual-sample-replay) |
+| Reference HD95 completeness | BraTS2023: 11205 region-level records on 249 cases, 0 non-finite HD95 records and 196 single-empty records retained. BraTS2021: 5625 records on 125 cases, 0 non-finite and 81 single-empty records retained. | [Saved-record verification](#saved-record-verification) |
 
 The label finding excludes the specific negative-fill-to-ET mechanism in the audited pipeline; it is not an exhaustive replay of all historical batches. Legacy HD95 protocols differ and require explicit harmonization before their values are compared with the current reference results.
 
 ## Label and HD95 verification
 
-Consolidated from the supplied label-rotation and HD95 verification document (2026-11-02). These checks summarize existing audit evidence; no new training or inference was performed for this documentation merge.
+BraTS2023 label coverage and augmentation replays were checked against the current 875/125/249 patient-disjoint partition. DSC, HD95 and empty-mask record counts below were evaluated on all 249 test scans using the matching seed-999 checkpoint. BraTS2021 retains its existing 125-case reference evaluation.
 
 ### Label rotation: mechanism and verification
 
@@ -123,22 +123,22 @@ The conversion to int64 occurs after rotation. In the verified SciPy implementat
 
 | Evidence level | Check | Result | Scope / evidence |
 |---|---|---|---|
-| Training-data coverage | Header scan of BraTS2023 training segmentations | 1001 / 1001 are uint8 | Existing reliability audit, Section 3.1; dtype scan, not full-volume augmentation of every case |
+| Training-data coverage | Header scan of BraTS2023 training segmentations | 875 / 875 are uint8 | New header scan over all 875 scans in the current training partition |
 | Training-data coverage | Header scan of BraTS2021 training segmentations | 1000 / 1000 are uint8 | Existing reliability audit, Section 3.1 |
 | Source data flow | Rotation precedes conversion to int64; label intensity transform is identity; flips preserve values | No signed conversion before rotation in this pipeline | Frozen dataset: lines 59–66,112–129; original transforms: lines 33–70,127–158 |
-| Runtime behavior | uint8 rotation with negative constant fill | Boundary fill becomes 0; no negative output labels | Audit reports SciPy 1.15.3 locally and 1.17.1 on the server |
+| Runtime behavior | uint8 rotation with negative constant fill | Boundary fill becomes 0; no negative output labels | Current-partition replay uses SciPy 1.17.1 |
 | Synthetic angle sweep | 3 implementations × 20 integer angles (-10 to 9 degrees) × 3 planes | 180 / 180 checks contain no negative labels for uint8 | Saved synthetic evidence; 16³ zero-label geometry checks, not a training contamination-rate estimate |
-| Real-input replay | Two actual BraTS2023 training samples through the frozen data loader and 128³ augmentation | No negative labels; class-3 counts unchanged by one-hot encoding | Existing report, Section 3.1; replay results below |
+| Real-input replay | Two samples from the current BraTS2023 training partition through the audited 128³ augmentation chain | No negative labels; class-3 counts unchanged by one-hot encoding | Current-partition replay results below |
 | Positive control | Same synthetic chain with signed/float labels | Risk reproduces; four-class control: 8 class-3 voxels become 520 one-hot ET voxels, including 512 negative-fill voxels | Demonstrates that the check detects the failure when its dtype condition is present |
 
 #### Actual-sample replay
 
 | Replay sample | Label dtype before rotation | Angle / plane | Negative labels after rotation | Class-3 voxels after rotation | ET voxels after one-hot | Difference |
 |---|---|---|---:|---:|---:|---:|
-| A | uint8 | -5 degrees / (1,0) | 0 | 7353 | 7353 | 0 |
-| B | uint8 | -9 degrees / (1,0) | 0 | 12514 | 12514 | 0 |
+| A | uint8 | -5 degrees / (1,0) | 0 | 22600 | 22600 | 0 |
+| B | uint8 | -9 degrees / (1,0) | 0 | 24256 | 24256 | 0 |
 
-Sample identifiers are omitted from this public summary; the original audit retains the source case identifiers. Counts compare the rotated labels with their one-hot encoding, not with the unrotated segmentation, whose geometry may change legitimately.
+Samples A and B are the first two eligible entries in the sorted current 875-scan BraTS2023 training list, requiring spatial axes of at least 128 voxels and non-empty ET. Python and NumPy random seeds are 999 for replay A and 1000 for replay B. Counts compare the rotated labels with their one-hot encoding, not with the unrotated segmentation, whose geometry may change legitimately.
 
 **Mechanism-level interpretation.** Given the audited uint8 input, unchanged transform order, and verified runtime behavior, the specific path `negative rotation fill -> negative one-hot index -> false ET` cannot occur: no negative value reaches one-hot indexing. This conclusion is about that mechanism in this pipeline. The two real-sample replays validate execution; they are not an exhaustive replay of every historical batch. Signed/float inputs under the same augmentation code remain a conditional hazard.
 
@@ -146,14 +146,14 @@ Sample identifiers are omitted from this public summary; the original audit reta
 
 HD95 with empty masks uses an explicit evaluation convention. The volume-diagonal value below is a penalty for an otherwise undefined distance, not an observed surface distance.
 
-| Prediction | Ground truth | DSC | HD95 handling in the archived reference evaluation |
+| Prediction | Ground truth | DSC | HD95 handling in the reference evaluation |
 |---|---|---|---|
 | Empty | Empty | 1 | 0 mm |
 | Empty | Non-empty | 0 | Volume-diagonal penalty; retain the record |
 | Non-empty | Empty | 0 | Volume-diagonal penalty; retain the record |
 | Non-empty | Non-empty | Case-wise Dice | 95th percentile of pooled bidirectional surface distances |
 
-| HD95 parameter | Archived reference protocol |
+| HD95 parameter | Reference protocol |
 |---|---|
 | Spacing | (1,1,1) mm |
 | Surface extraction | 26-neighbor erosion, 3×3×3 all-ones structure, border value 0; surface from XOR |
@@ -181,37 +181,47 @@ The current BraTS2023 counts below were obtained by reading all 249 test segment
 | BraTS2023, current patient-disjoint test cohort | 249 | 249 | 249 | 237 |
 | BraTS2021, archived evaluation cohort | 125 | 125 | 125 | 121 |
 
-These are ground-truth counts for the specified cohorts. The archived BraTS2023 metric results below use a separate 125-case cohort, which shares 32 cases with the current 249-case test cohort.
+The BraTS2023 ground-truth counts and metric results below use the same 249-case test cohort.
 
 #### All-case and GT-nonempty results
 
-The table uses archived PRISM checkpoints from seed 999 for BraTS2023 and BraTS2021. Each archived evaluation contains 125 cases. The BraTS2023 DSC and HD95 columns describe that archived 125-case evaluation. Both columns for each metric use the same predictions and the 26-neighbor evaluation protocol above.
+BraTS2023 uses the seed-999 checkpoint whose recorded training, validation and test lists match the current 875/125/249 partition; the test patients have no overlap with the training or validation patients. BraTS2021 uses its existing seed-999 reference evaluation on 125 cases. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
+
+The BraTS2023 evaluation uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
 
 For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
 
 | Dataset | Region | GT-nonempty patients / total | All-case DSC (%) | GT-nonempty DSC (%) | All-case HD95 (mm) | GT-nonempty HD95 (mm) |
 |---|---|---:|---:|---:|---:|---:|
-| BraTS2023 | WT | 125 / 125 | 89.82 | 89.82 | 5.94 | 5.94 |
-| BraTS2023 | TC | 124 / 125 | 84.33 | 84.36 | 9.85 | 9.51 |
-| BraTS2023 | ET | 124 / 125 | 76.66 | 76.64 | 11.49 | 11.16 |
+| BraTS2023 | WT | 249 / 249 | 90.58 | 90.58 | 4.58 | 4.58 |
+| BraTS2023 | TC | 249 / 249 | 85.14 | 85.14 | 7.71 | 7.71 |
+| BraTS2023 | ET | 237 / 249 | 75.72 | 77.05 | 13.28 | 7.48 |
 | BraTS2021 | WT | 125 / 125 | 89.65 | 89.65 | 5.51 | 5.51 |
 | BraTS2021 | TC | 125 / 125 | 83.49 | 83.49 | 6.73 | 6.73 |
 | BraTS2021 | ET | 121 / 125 | 71.93 | 73.81 | 13.81 | 7.24 |
 
 #### Saved-record verification
 
-The following numbers were read from existing patient-metric CSVs; no predictions were recomputed. A record is one patient × one pattern × one region, not a unique patient.
+BraTS2023 counts were recomputed from the completed 249-case evaluation. BraTS2021 counts come from the existing 125-case reference records. One record corresponds to one patient, one availability pattern and one tumor region.
 
-| Dataset / reference analysis | Unique patients | Patterns | Region-level records | Single-empty records | Double-empty records | Non-finite HD95 records | Completely missed non-empty-GT records retained |
+| Dataset / reference evaluation | Unique patients | Patterns | Region-level records | Single-empty records | Double-empty records | Non-finite HD95 records | Completely missed non-empty-GT records retained |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| BraTS2023 | 125 | 15 | 5625 | 104 | 24 | 0 | 98 |
+| BraTS2023 | 249 | 15 | 11205 | 196 | 89 | 0 | 105 |
 | BraTS2021 | 125 | 15 | 5625 | 81 | 9 | 0 | 30 |
 
-Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; every double-empty record has DSC=1 and HD95=0. The recorded single-empty counts by region are WT/TC/ET = 8/41/55 for BraTS2023 and 0/12/69 for BraTS2021.
+Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; every double-empty record has DSC=1 and HD95=0. The recorded single-empty counts by region are WT/TC/ET = 3/48/145 for BraTS2023 and 0/12/69 for BraTS2021.
 
 GT-nonempty filtering does not remove false-negative predictions. Report all-case and GT-nonempty results as a pair from the same evaluation; do not attach new GT-nonempty means to older all-case numbers obtained under another protocol.
 
 ### Evidence files
+
+- Current BraTS2023 audit covers all 875 training-label headers and all 249 test ground-truth masks. Augmentation replays use two samples from the current training partition.
+- The new evaluation contains 11205 unique case-pattern-region records. Independent checks verified complete coverage, finite metrics, empty-mask rules and the published aggregate means. Encoder-cache validation passed 30 real patch-pattern comparisons with bitwise-identical probabilities.
+- Training-list SHA256: `1bf95a2c6c9983bac79e428df0c817a6c3cf8b19f6d13ca13d568ea4f6c2ee68`.
+- Test-list SHA256: `e8f6a7d646ac5caa6a1160259774297a42fce6b010bff6afe4679d53474dc7b6`.
+- New patient-metric CSV SHA256: `c89e06ab5f40d0047a71fd48d2b5f0fcc93f6704d719bcc30ae6fde97f78c270`.
+- New evaluation-manifest SHA256: `a961ac442bfe0c228c724dd17a0b1b432c5a1fad27c0137dbab04ede3d7aa4bf`.
+- BraTS2023 checkpoint SHA256: `17728fdb9f16ac32fecedd5ae6185056702c51ca74cf3ce293182165d423bbbc`.
 
 - Stored synthetic CPU checks (`rotation_and_hd95_synthetic_checks.json`; archived evidence, not bundled): copied unchanged from the existing audit; includes positive controls and angle sweeps.
 - Read-only verification summary (`label_and_hd95_verification_summary.json`; archived evidence, not bundled): aggregate CSV checks and source hashes; real-input scan/replay entries are explicitly attributed to the prior report.
@@ -241,7 +251,7 @@ Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59
 - Decoder includes gate-internal refinement, a second post-refinement, and an additional projected-guide residual with a learned scale initially 0.5 (`U:482–516,539–546`).
 - Native inference computes auxiliary predictions and full-resolution prior before returning only final output. Optimized runners must be identified separately (`M:223–233,274–280`).
 - The signed-input rotation hazard does not trigger in the audited uint8 pipeline: dtype scans, source data flow, 180 uint8 synthetic angle/plane checks, and two actual-sample replays support this conclusion. See [the verification evidence](#label-rotation-mechanism-and-verification).
-- The archived reference HD95 protocol uses finite penalties with 26-neighbor surfaces. See [the metric definition](#hd95-the-protocol-that-must-be-stated-explicitly).
+- The reference HD95 protocol uses finite penalties with 26-neighbor surfaces. See [the metric definition](#hd95-the-protocol-that-must-be-stated-explicitly).
 
 </details>
 
