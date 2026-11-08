@@ -185,7 +185,7 @@ The ground-truth counts above describe the current 249-case BraTS2023 cohort. Th
 
 #### All-case and GT-nonempty results
 
-The values below reproduce the supplied manuscript table at one decimal place. Both datasets use archived seed-999 reference evaluations on 125 cases. These BraTS2023 values do not describe the current 249-case patient-disjoint cohort. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
+The values below reproduce the supplied manuscript table at one decimal place. BraTS2023 uses the seed-42 data partition, and BraTS2021 uses the seed-999 reference evaluation. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
 
 The separate 249-case BraTS2023 evaluation uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
 
