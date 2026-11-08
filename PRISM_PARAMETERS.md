@@ -181,24 +181,24 @@ The current BraTS2023 counts below were obtained by reading all 249 test segment
 | BraTS2023, current patient-disjoint test cohort | 249 | 249 | 249 | 237 |
 | BraTS2021, archived evaluation cohort | 125 | 125 | 125 | 121 |
 
-The BraTS2023 ground-truth counts and metric results below use the same 249-case test cohort.
+The ground-truth counts above describe the current 249-case BraTS2023 cohort. The metric table below reproduces the manuscript's archived 125-case results supplied in the reference image; its patient counts refer to that archived cohort.
 
 #### All-case and GT-nonempty results
 
-BraTS2023 uses the seed-999 checkpoint whose recorded training, validation and test lists match the current 875/125/249 partition; the test patients have no overlap with the training or validation patients. BraTS2021 uses its existing seed-999 reference evaluation on 125 cases. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
+The values below reproduce the supplied manuscript table at one decimal place. Both datasets use archived seed-999 reference evaluations on 125 cases. These BraTS2023 values do not describe the current 249-case patient-disjoint cohort. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
 
-The BraTS2023 evaluation uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
+The separate 249-case BraTS2023 evaluation uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
 
 For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
 
 | Dataset | Region | GT-nonempty patients / total | All-case DSC (%) | GT-nonempty DSC (%) | All-case HD95 (mm) | GT-nonempty HD95 (mm) |
 |---|---|---:|---:|---:|---:|---:|
-| BraTS2023 | WT | 249 / 249 | 90.58 | 90.58 | 4.58 | 4.58 |
-| BraTS2023 | TC | 249 / 249 | 85.14 | 85.14 | 7.71 | 7.71 |
-| BraTS2023 | ET | 237 / 249 | 75.72 | 77.05 | 13.28 | 7.48 |
-| BraTS2021 | WT | 125 / 125 | 89.65 | 89.65 | 5.51 | 5.51 |
-| BraTS2021 | TC | 125 / 125 | 83.49 | 83.49 | 6.73 | 6.73 |
-| BraTS2021 | ET | 121 / 125 | 71.93 | 73.81 | 13.81 | 7.24 |
+| BraTS2023 | WT | 125 / 125 | 90.0 | 90.0 | 5.9 | 5.9 |
+| BraTS2023 | TC | 124 / 125 | 83.1 | 83.1 | 9.8 | 9.5 |
+| BraTS2023 | ET | 124 / 125 | 76.7 | 76.6 | 11.5 | 11.2 |
+| BraTS2021 | WT | 125 / 125 | 89.7 | 89.7 | 5.5 | 5.5 |
+| BraTS2021 | TC | 125 / 125 | 83.5 | 83.5 | 6.7 | 6.7 |
+| BraTS2021 | ET | 121 / 125 | 71.9 | 73.8 | 13.8 | 7.2 |
 
 #### Saved-record verification
 
