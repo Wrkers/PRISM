@@ -9,6 +9,7 @@ This document lists the reference architecture, data-processing settings, infere
 ## Contents
 
 - [Architecture](#architecture)
+- [Dataset Partition Details](#dataset-partition-details)
 - [Data processing and inference](#data-processing-and-inference)
 - [Label and HD95 verification](#label-and-hd95-verification)
 - [Implementation notes](#implementation-notes)
@@ -84,6 +85,37 @@ This document lists the reference architecture, data-processing settings, infere
 | Component | Parameter | Setting | Evidence |
 |---|---|---|---|
 | Dropout | Explicit Dropout layers | None in the listed full architecture; random-view branch retention is reported separately | M:34–152; U:30–558 |
+
+## Dataset Partition Details
+
+BraTS2023 is used for the main comparative experiments, whereas BraTS2021 is used for ablation studies. Both datasets use fixed, non-overlapping patient-level partitions throughout their respective experiments. The **split seed** controls data partitioning and should not be confused with a **model-training or checkpoint seed** (e.g., 999 for an audited BraTS2023 checkpoint).
+
+**BraTS2023.** We follow the patient-disjoint partition associated with IM-Fuse (upstream split seed **42**). All longitudinal scans of the same patient are grouped into one subset: 118 patients with multiple time points contribute 236 scans, all assigned to training. The other 1,015 patients initially contribute one scan each. After two scans were excluded from the test list, the evaluated cohort contains **1,249 scans from 1,131 patients**. Because the upstream partition script enumerates directories without sorting, **the frozen split lists used in the experiments, rather than seed 42 alone, define exact membership**. All main comparative methods were evaluated using this fixed partition, as reported in the manuscript.
+
+**BraTS2021.** The 1,251 initial scan identifiers were sorted lexicographically and shuffled with `random.Random(999)`, then assigned to training/validation/testing as **1,001/125/125**. One training scan was excluded because its preprocessed depth was insufficient for the original crop configuration. The final partition is **1,000/125/125**, with one unique patient identifier per retained scan.
+
+### Final split sizes and patient-level audit
+
+| Dataset | Subset | Scans | Unique patients | Share of retained scans |
+|---|---|---:|---:|---:|
+| BraTS2023 | Training | 875 | 757 | 70.06% |
+| BraTS2023 | Validation | 125 | 125 | 10.01% |
+| BraTS2023 | Testing | 249 | 249 | 19.94% |
+| **BraTS2023** | **Total** | **1,249** | **1,131** | **100%** |
+| BraTS2021 | Training | 1,000 | 1,000 | 80.00% |
+| BraTS2021 | Validation | 125 | 125 | 10.00% |
+| BraTS2021 | Testing | 125 | 125 | 10.00% |
+| **BraTS2021** | **Total** | **1,250** | **1,250** | **100%** |
+
+| Patient-level verification item | BraTS2023 | BraTS2021 |
+|---|---|---|
+| Unit of separation | Patient ID, grouping multiple time points | Unique patient ID for each scan |
+| Repeated scans | 118 patients / 236 scans, all in training | None in the retained cohort |
+| Patient IDs shared between train/validation/test | **0** (pairwise intersections) | **0** (pairwise intersections) |
+| Exclusions after initial allocation | 2 test scans | 1 training scan |
+| Split-generation seed | 42 (upstream script; frozen lists define membership) | 999 (`random.Random`, after sorted identifiers) |
+
+**Reproducibility boundary.** The repository's preprocessing code describes how the partitions are generated; this document does **not** publish patient-ID lists. For BraTS2023, matching seed 42 without matching the upstream directory iteration order does not guarantee identical membership. The SHA256 values of the frozen training, validation and test lists are provided in [Evidence files](#evidence-files) for checking a local copy against the experiment's lists; a hash alone cannot reconstruct a list. The audit figures above describe the recorded partitions, not an independent rerun performed from this Markdown document. For the 249-case BraTS2023 test-set audit and related evaluation evidence, see [Current BraTS2023 partition and ground-truth region counts](#current-brats2023-partition-and-ground-truth-region-counts).
 
 ## Data processing and inference
 
@@ -209,7 +241,7 @@ For each region, the GT-nonempty subset contains patients with at least one grou
 |---|---|---:|---:|---:|---:|---:|
 | BraTS2023 | WT | 249 / 249 | 90.0 | 90.0 | 5.9 | 5.9 |
 | BraTS2023 | TC | 249 / 249 | 83.1 | 83.1 | 9.8 | 9.8 |
-| BraTS2023 | ET | 237 / 249 | 78.0 | 76.6 | 13.3 | 7.5 |
+| BraTS2023 | ET | 237 / 249 | 76.7 | 76.6 | 11.5 | 11.2 |
 | BraTS2021 | WT | 125 / 125 | 89.7 | 89.7 | 5.5 | 5.5 |
 | BraTS2021 | TC | 125 / 125 | 83.5 | 83.5 | 6.7 | 6.7 |
 | BraTS2021 | ET | 121 / 125 | 71.9 | 73.8 | 13.8 | 7.2 |
