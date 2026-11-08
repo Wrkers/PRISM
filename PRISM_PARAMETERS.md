@@ -193,9 +193,9 @@ For each region, the GT-nonempty subset contains patients with at least one grou
 
 | Dataset | Region | GT-nonempty patients / total | All-case DSC (%) | GT-nonempty DSC (%) | All-case HD95 (mm) | GT-nonempty HD95 (mm) |
 |---|---|---:|---:|---:|---:|---:|
-| BraTS2023 | WT | 125 / 125 | 90.0 | 90.0 | 5.9 | 5.9 |
-| BraTS2023 | TC | 124 / 125 | 83.1 | 83.1 | 9.8 | 9.5 |
-| BraTS2023 | ET | 124 / 125 | 76.7 | 76.6 | 11.5 | 11.2 |
+| BraTS2023 | WT | 249 / 249 | 90.0 | 90.0 | 5.9 | 5.9 |
+| BraTS2023 | TC | 249 / 249 | 83.1 | 83.1 | 9.8 | 9.5 |
+| BraTS2023 | ET | 237 / 249 | 76.7 | 76.6 | 11.5 | 11.2 |
 | BraTS2021 | WT | 125 / 125 | 89.7 | 89.7 | 5.5 | 5.5 |
 | BraTS2021 | TC | 125 / 125 | 83.5 | 83.5 | 6.7 | 6.7 |
 | BraTS2021 | ET | 121 / 125 | 71.9 | 73.8 | 13.8 | 7.2 |
