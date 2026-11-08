@@ -2,7 +2,7 @@
 
 Configuration reference for *PRISM: Lightweight Prior-Guided Segmentation of Incomplete Multimodal Brain Tumor MRI*.
 
-**Documentation snapshot:** 2026-11-08, current-partition BraTS2023 re-audit and reference evaluation. **Status:** verified label coverage, augmentation replays and complete 249-case metrics.
+**Documentation snapshot:** 2026-11-08. BraTS2023 data, label checks and empty-mask record verification use the 875/125/249 patient-disjoint partition. Metric-table entries retain their manuscript source.
 
 This document lists the reference architecture, data-processing settings, inference details, and label/HD95 verification tables.
 
@@ -24,8 +24,8 @@ This document lists the reference architecture, data-processing settings, infere
 
 | Component | Parameter | Setting | Evidence |
 |---|---|---|---|
-| Input/output | Modalities and classes | 4 modalities in the order FLAIR, T1ce, T1, T2; 4 segmentation classes including background | D:84–94; F:8–23; M:37–38 |
-| PSE | Stage widths | 16,32,64,96,128 | F:8–13; M:49–53 |
+| Input/output | Modalities and classes | 4 modalities in the order FLAIR, T1ce, T1, T2; 4 segmentation classes including background | D:84–94; M:37–38 |
+| PSE | Stage widths | 16,32,64,96,128 | M:49–53 |
 | PSE | Modality-specific stems | Four independent stems; residual Conv3D 1→16, then stride-2 residual Conv3D 16→32 and a residual depthwise-separable refinement block | M:68–69; U:283–293 |
 | PSE | Shared deep stages | Stride-2 residual blocks 32→64→96→128; 1,1,2 random-view blocks at stages 3,4,5 | M:73–75; U:296–319 |
 | Basic blocks | Normalization and activation | GroupNorm; GELU. GN groups: largest divisor of C not exceeding 8. | U:8–21,30–90 |
@@ -59,7 +59,7 @@ This document lists the reference architecture, data-processing settings, infere
 
 | Component | Parameter | Setting | Evidence |
 |---|---|---|---|
-| LPB | Channels and grid | Input/bottleneck/output 128; adaptive pooling 4³, 64 spatial tokens/channel | F:10–12; U:413–442 |
+| LPB | Channels and grid | Input/bottleneck/output 128; adaptive pooling 4³, 64 spatial tokens/channel | U:413–442 |
 | LPB | Low-rank projections | rank 16; W_down(16,64), W_up(64,16); bias=False, no inter-projection nonlinearity | U:389–406 |
 | LPB | Additional refinements | Initial 1³/GN/GELU projection; two residual DS refinement blocks surrounding the token mixer; an additional pre-pool 1³/GN/GELU in the mixer | U:391,424–442 |
 | LPB | Channel mixing and residual | Channel MLP 128→256→128; GN/GELU then GN; learned scalar initialized 0.5 for outer mixer residual | U:394–410 |
@@ -87,7 +87,7 @@ This document lists the reference architecture, data-processing settings, infere
 
 ## Data processing and inference
 
-| Parameter | Original manuscript run | Verified reference evaluation | Evidence |
+| Parameter | Pipeline finding | Current verification | Evidence |
 |---|---|---|---|
 | Rotation-label boundary handling | Not triggered in the audited uint8-before-rotation pipeline; see verification scope | 875/875 BraTS2023 and 1000/1000 BraTS2021 label headers are uint8; 180 uint8 angle/plane checks and two actual-sample replays show no negative-index ET | [Verification evidence](#label-rotation-mechanism-and-verification) |
 
@@ -101,11 +101,11 @@ This document lists the reference architecture, data-processing settings, infere
 | Actual training-input replay | Two samples from the current 875-scan training partition, cropped to 128³; negative labels 0/0; class-3 counts 22600→22600 and 24256→24256 through one-hot encoding | [Replay table](#actual-sample-replay) |
 | Reference HD95 completeness | BraTS2023: 11205 region-level records on 249 cases, 0 non-finite HD95 records and 196 single-empty records retained. BraTS2021: 5625 records on 125 cases, 0 non-finite and 81 single-empty records retained. | [Saved-record verification](#saved-record-verification) |
 
-The label finding excludes the specific negative-fill-to-ET mechanism in the audited pipeline; it is not an exhaustive replay of all historical batches. Legacy HD95 protocols differ and require explicit harmonization before their values are compared with the current reference results.
+The label finding concerns the specific negative-fill-to-ET mechanism in the audited pipeline. The real-input replays validate two training samples; the empty-mask record audit covers all 249 BraTS2023 test scans and all 15 availability patterns.
 
 ## Label and HD95 verification
 
-BraTS2023 label coverage and augmentation replays were checked against the current 875/125/249 patient-disjoint partition. DSC, HD95 and empty-mask record counts below were evaluated on all 249 test scans using the matching seed-999 checkpoint. BraTS2021 retains its existing 125-case reference evaluation.
+BraTS2023 uses a single patient-disjoint partition of 875 training, 125 validation and 249 test scans. Label coverage, augmentation replays, ground-truth counts and the prediction-dependent empty-mask record audit use this partition. The record audit uses a seed-999 checkpoint whose training, validation and test lists match these lists, with no test-patient overlap with training or validation. BraTS2021 retains its 125-case reference evaluation.
 
 ### Label rotation: mechanism and verification
 
@@ -158,10 +158,24 @@ HD95 with empty masks uses an explicit evaluation convention. The volume-diagona
 | Spacing | (1,1,1) mm |
 | Surface extraction | 26-neighbor erosion, 3×3×3 all-ones structure, border value 0; surface from XOR |
 | Distance statistic | Pool both directed Euclidean surface-distance arrays, then take percentile 95 |
-| Single-empty penalty | `sqrt(sum(((shape - 1) * spacing)^2))`, using the evaluated segmentation volume shape |
+| Single-empty penalty | `sqrt(sum(((shape - 1) * spacing)^2))`, calculated separately for each case from its entire preprocessed cropped segmentation array |
 | Missing-value handling | No single-empty omission through NaN averaging |
 | Non-empty-GT subset | Select using ground truth only, separately for WT/TC/ET; completely missed non-empty regions remain included |
 | Aggregation | Case mean within each pattern and region; equal-weight mean over the 15 patterns when reporting All-15 |
+
+#### BraTS2023 evaluation grid and case-specific penalties
+
+For case i, `shape = (H_i,W_i,D_i)` is the spatial shape of its saved, preprocessed segmentation array. The physical penalty is `P_i = sqrt(((H_i-1)*s_x)^2 + ((W_i-1)*s_y)^2 + ((D_i-1)*s_z)^2)`, with `(s_x,s_y,s_z) = (1,1,1)` mm. The three axes span 128–156, 149–191 and 128–153 voxels across the 249 test scans. These are per-axis ranges; each case retains its own shape.
+
+| Quantity | Shape / value | Role |
+|---|---|---|
+| Evaluated segmentation grid | Per-case preprocessed cropped array; 245 distinct shapes across 249 scans | Determines each case's single-empty penalty |
+| Case-wise volume diagonals | 237.13–280.18 mm across the 249 scans | Finite, case-specific penalties |
+| Example evaluated grid | 150×167×139 voxels; diagonal 262.30 mm | One actual ET-empty test case |
+| Sliding window | 128×128×128 voxels, 50% overlap | Prediction probabilities are combined over the entire evaluated grid |
+| Timing input | 240×240×155 voxels | Fixed input for the separate timing protocol described under profiling |
+
+All 196 single-empty records were checked against their case-specific evaluated-grid diagonals. The optimized surface-distance routine handles empty masks on the entire evaluated grid before applying its local bounding-box optimization to double-nonempty masks. For ET, the 91 GT-empty/prediction-nonempty records have a mean penalty of 253.017124 mm; the 54 GT-nonempty/prediction-empty records have a mean penalty of 255.777422 mm. Their combined 145-record mean is 254.045097 mm. These are record-weighted summaries of case-specific values.
 
 #### Current BraTS2023 partition and ground-truth region counts
 
@@ -181,13 +195,13 @@ The current BraTS2023 counts below were obtained by reading all 249 test segment
 | BraTS2023, current patient-disjoint test cohort | 249 | 249 | 249 | 237 |
 | BraTS2021, archived evaluation cohort | 125 | 125 | 125 | 121 |
 
-The ground-truth counts above describe the current 249-case BraTS2023 cohort. The metric table below reproduces the manuscript's archived 125-case results supplied in the reference image; its patient counts refer to that archived cohort.
+The BraTS2023 ground-truth counts and the saved-record audit below refer to the 249 test scans in the 875/125/249 partition. The metric entries in the following table retain their manuscript source.
 
 #### All-case and GT-nonempty results
 
-The values below reproduce the supplied manuscript table at one decimal place. BraTS2023 uses the seed-42 data partition, and BraTS2021 uses the seed-999 reference evaluation. All-case and GT-nonempty columns use the same predictions within each dataset and the 26-neighbor evaluation protocol above.
+The DSC and HD95 entries in this table are retained from the manuscript at their existing precision. The manuscript identifies the BraTS2023 data partition by seed 42; BraTS2021 uses its seed-999 reference evaluation. Record-count and penalty evidence in the following audit sections is scoped to the independently identified prediction CSV and evaluation manifest.
 
-The separate 249-case BraTS2023 evaluation uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
+The 249-case BraTS2023 record audit uses 128³ sliding windows with 50% overlap and uniform averaging of probabilities before argmax. Computation uses FP32 with TF32 enabled, without test-time augmentation or small-ET postprocessing.
 
 For each region, the GT-nonempty subset contains patients with at least one ground-truth voxel in that region. A missed region with non-empty ground truth retains its DSC of 0 and the volume-diagonal HD95 penalty. Each score averages patients within a modality pattern and then gives equal weight to all 15 patterns. Counts are unique patients within each dataset and region.
 
@@ -211,16 +225,28 @@ BraTS2023 counts were recomputed from the completed 249-case evaluation. BraTS20
 
 Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; every double-empty record has DSC=1 and HD95=0. The recorded single-empty counts by region are WT/TC/ET = 3/48/145 for BraTS2023 and 0/12/69 for BraTS2021.
 
-GT-nonempty filtering does not remove false-negative predictions. Report all-case and GT-nonempty results as a pair from the same evaluation; do not attach new GT-nonempty means to older all-case numbers obtained under another protocol.
+The BraTS2023 empty-mask counts can also be separated as follows. GT-empty and prediction-empty counts each include double-empty records. Single-empty means that exactly one of prediction and GT is empty; completely missed non-empty GT means GT is non-empty and prediction is empty.
+
+| BraTS2023 region | GT-empty records | Prediction-empty records | Double-empty records | Single-empty records | Completely missed non-empty-GT records |
+|---|---:|---:|---:|---:|---:|
+| WT | 0 | 3 | 0 | 3 | 3 |
+| TC | 0 | 48 | 0 | 48 | 48 |
+| ET | 180 | 143 | 89 | 145 | 54 |
+| Total | 180 | 194 | 89 | 196 | 105 |
+
+These are case-pattern-region records. The 12 ET-empty test patients contribute 12×15 = 180 GT-empty ET records. The 89 double-empty ET records and 91 GT-empty/prediction-nonempty ET records together account for those 180 records.
+
+GT-nonempty filtering retains false-negative predictions. All-case and GT-nonempty results must be derived from the same case list, predictions and evaluation protocol. Dataset-dependent summaries, including individual availability patterns, missing-modality groups and any uncertainty or significance estimates, require the same fixed partition.
 
 ### Evidence files
 
 - Current BraTS2023 audit covers all 875 training-label headers and all 249 test ground-truth masks. Augmentation replays use two samples from the current training partition.
-- The new evaluation contains 11205 unique case-pattern-region records. Independent checks verified complete coverage, finite metrics, empty-mask rules and the published aggregate means. Encoder-cache validation passed 30 real patch-pattern comparisons with bitwise-identical probabilities.
+- The audited prediction CSV contains 11205 unique case-pattern-region records. Independent checks verified complete coverage, finite metrics and empty-mask rules; all 196 single-empty HD95 values match the corresponding evaluated-grid diagonals. Encoder-cache validation passed 30 real patch-pattern comparisons with bitwise-identical probabilities.
 - Training-list SHA256: `1bf95a2c6c9983bac79e428df0c817a6c3cf8b19f6d13ca13d568ea4f6c2ee68`.
+- Validation-list SHA256: `36572f11746985d79ef1c4bc8cade194b5b5b6b252a198ee6c7e399082ba8ac2`.
 - Test-list SHA256: `e8f6a7d646ac5caa6a1160259774297a42fce6b010bff6afe4679d53474dc7b6`.
-- New patient-metric CSV SHA256: `c89e06ab5f40d0047a71fd48d2b5f0fcc93f6704d719bcc30ae6fde97f78c270`.
-- New evaluation-manifest SHA256: `a961ac442bfe0c228c724dd17a0b1b432c5a1fad27c0137dbab04ede3d7aa4bf`.
+- Audited patient-metric CSV SHA256: `c89e06ab5f40d0047a71fd48d2b5f0fcc93f6704d719bcc30ae6fde97f78c270`.
+- Current-partition evaluation-manifest SHA256: `a961ac442bfe0c228c724dd17a0b1b432c5a1fad27c0137dbab04ede3d7aa4bf`.
 - BraTS2023 checkpoint SHA256: `17728fdb9f16ac32fecedd5ae6185056702c51ca74cf3ce293182165d423bbbc`.
 
 - Stored synthetic CPU checks (`rotation_and_hd95_synthetic_checks.json`; archived evidence, not bundled): copied unchanged from the existing audit; includes positive controls and angle sweeps.
@@ -260,14 +286,14 @@ Source audit SHA256: `514035c8d2c0f3382f4e346717878832ef8ed7f7ef14123739edd90e59
 
 - Archived exact parameter count 2,338,378 is secondary evidence, not a new recount. Registered auxiliary parameters are included when requires_grad=True.
 - Frozen FLOPs counter supports Conv3d/Linear; new counter also supports ConvTranspose3d. These are partial hook-based counts, 2 FLOPs/MAC; interpolation, normalization, activation, softmax, and other unhooked work are excluded (`Q:371–415; B:221–272`).
-- New timing protocol: volume 240×240×155; 20 warmup / 50 timed passes; seed 20260727; FP32; TF32 off. These are code-specified settings, not new measurements (`B:35–47,161–218`).
+- Timing protocol: fixed input volume 240×240×155; 20 warmup / 50 timed passes; seed 20260727; FP32; TF32 off. This input belongs to efficiency profiling. Segmentation-record penalties use the per-case evaluated grids documented above. The timing settings are code-specified, not new measurements (`B:35–47,161–218`).
 - Original reported 134.31 GFLOPs still requires the original command, source snapshot, input, enabled heads, precision/backend settings, and raw output.
 
 </details>
 
 ## Source evidence
 
-The identities and SHA256 hashes below refer to archived audit snapshots. Those snapshots are not bundled here. Source keys and numeric lines throughout the tables refer to these identities, not to same-named public files.
+The identities and SHA256 hashes below identify architecture and transform source snapshots and the current-partition record-audit manifest. Those snapshots are not bundled here. Numeric source lines refer to the identified source snapshots; the current audit manifest is identified by its hash.
 
 <details>
 <summary>Source-file identities and SHA256 hashes</summary>
@@ -278,9 +304,7 @@ The identities and SHA256 hashes below refer to archived audit snapshots. Those 
 | B | Archived `benchmark_efficiency.py` (not bundled) | `b2d68ecfebc3084e49753558dffa33ee0aff9a916469ee69821ec85bd4d9d020` |
 | D | Archived `datasets.py` (D) | `36f7ef36188cef3351a1bef789e6eaee51a678fb9a1c9270c487a9c3d52df176` |
 | E | Archived `engine.py` (not bundled) | `dfe0d2566196a2661673babaea0e1fe276080510bc99359cc37e7302a0c182fa` |
-| F | Archived `evaluation_manifest.json` (F) | `fca9731f40aeb111b18eaf5d4eb1954602d74609837c212a9155d7f9a5602772` |
-| H | Archived `run_seed_1024.sh` (H) | `14b02887a8db5dde26b58f0c860e88d7595a27e2bdeee36241b8df0a2e9aac23` |
-| I | Archived `main_reference_command.json` (I) | `f1bb38059f60a8e2a9a503924bbfab9aa5638c4fddaadb44b864b529291a493a` |
+| F | `evaluation_manifest.json` for the 249-case BraTS2023 record audit | `a961ac442bfe0c228c724dd17a0b1b432c5a1fad27c0137dbab04ede3d7aa4bf` |
 | L | Archived `losses.py` (not bundled) | `489e7b0777b5354624a167736fd2a5a08069b1c9c63913e7497ddd94689d6173` |
 | M | Archived `model.py` (not bundled) | `78280bae799bd8b113849dad1271568ecf78336b5790ff4ed44703ef07a80ebe` |
 | N0 | Archived `transforms.py` (N0) | `706a695ae98b0f7b2de24b765ff6242b24718056d39750044ffeb66dbbf3cef7` |
@@ -288,7 +312,6 @@ The identities and SHA256 hashes below refer to archived audit snapshots. Those 
 | P | Archived `presets.py` (not bundled) | `f8ddf66f507997c03a8da629966495d99870cee395464398d022254b7d1e5317` |
 | Q | Archived `test.py` (Q) | `94fc5f34b6959c2e0fe74be3a2dde63864d07a23f1b90f232c76609edbf1eb9a` |
 | R | Archived `服务器核查与启动命令_2026-10-26.md` (R) | `b70ba87eb61bda2b8b69a2c561cf357199c55f77701c16e986a249f6353063b9` |
-| R0 | Archived `input_manifest.json` (R0) | `eeaf14e4a795b36d36a0295511ed6658c7bf4148db3b648b0a4ca1f8c87f01ab` |
 | T | Archived `train_poly.py` (T) | `4da72cccba7b2a785b567da70d23dc8ad792e796beea687670389060975ced2c` |
 | U | Archived `modules.py` (not bundled) | `d0198b99627470da4f709d555394ae1ac2dc4c7fdf9fa74f5e1f11cda3ac5759` |
 | V | Archived `evaluate.py` (not bundled) | `41a70d3cfd1094e8f72883f23fff02c31e1fbca1d78540078e8fd6f33e187873` |

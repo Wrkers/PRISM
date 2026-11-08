@@ -29,10 +29,12 @@ python preprocess.py \
   --dataname BRATS2023 \
   --input-path /path/to/raw_brats2023 \
   --output-path /path/to/local_data/brats2023 \
-  --split-output-root /path/to/local_splits/brats2023
+  --split-output-root /path/to/generated_splits/brats2023
 ```
 
 For BraTS2021, use `--dataname BRATS2021` with separate input, output and split directories. Run preprocessing separately for each dataset; their cases are never pooled. Generated arrays are `vol/<CASE_ID>_vol.npy` with shape `(H,W,D,4)` and `seg/<CASE_ID>_seg.npy` with shape `(H,W,D)`.
+
+The documented BraTS2023 reference partition contains **875 training, 125 validation and 249 test scans**, corresponding to 757, 125 and 249 unique patients. All time points from a patient belong to one partition. The training and evaluation commands below use the separately prepared reference split files `train.txt`, `val15splits.csv` and `test15splits2.csv` under `/path/to/local_splits/brats2023`; their identities are recorded in [PRISM_PARAMETERS.md](PRISM_PARAMETERS.md#evidence-files). Preprocessing writes generic randomized split files to the generated-split directory shown above. Reproducing the reference partition requires its fixed split lists.
 
 ## Training
 
@@ -41,6 +43,8 @@ python train.py \
   --dataname BRATS2023 \
   --datapath /path/to/local_data/brats2023 \
   --split_root /path/to/local_splits/brats2023 \
+  --val_file val15splits.csv \
+  --test_file test15splits2.csv \
   --savepath /path/to/local_outputs/prism_brats2023
 ```
 
@@ -53,11 +57,14 @@ python test.py \
   --dataname BRATS2023 \
   --datapath /path/to/local_data/brats2023 \
   --split_root /path/to/local_splits/brats2023 \
+  --test_file test15splits2.csv \
   --resume /path/to/local_outputs/prism_brats2023/best.pth \
   --output_dir /path/to/local_outputs/prism_test
 ```
 
 Evaluation uses sliding windows with 50% overlap, averages overlapping probabilities and reports DSC and HD95 for whole tumour (WT), tumour core (TC) and enhancing tumour (ET). It averages across cases for each pattern, then averages the 15 pattern means equally. The `pattern_metrics.csv` and `summary.txt` files are generated locally. HD95 assumes 1 mm isotropic voxels by default; set `--voxel_spacing x y z` if required. WT uses internal labels 1/2/3, TC uses 1/3 and ET uses 3.
+
+For a single-empty mask pair, HD95 uses the case-specific physical diagonal of the entire preprocessed cropped segmentation array: `sqrt(sum(((shape - 1) * spacing)^2))`. Double-empty pairs receive DSC=1 and HD95=0. The 128³ sliding window is combined over that case's evaluated grid; the fixed profiling input is documented separately in [PRISM_PARAMETERS.md](PRISM_PARAMETERS.md#brats2023-evaluation-grid-and-case-specific-penalties).
 
 Checkpoints must match the model defined in this release. Private development checkpoints can contain parameters for removed modules and are not guaranteed to load strictly. No weights are downloaded automatically.
 
