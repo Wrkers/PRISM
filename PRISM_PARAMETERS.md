@@ -226,30 +226,6 @@ For each region, the GT-nonempty subset contains patients with at least one grou
 | BraTS2021 | TC | 125 / 125 | 83.5 | 83.5 | 6.7 | 6.7 |
 | BraTS2021 | ET | 121 / 125 | 72.7 | 73.8 | 13.8 | 7.2 |
 
-#### Saved-record verification
-
-BraTS2023 counts were recomputed from the completed 249-case evaluation. BraTS2021 counts come from the existing 125-case reference records. One record corresponds to one patient, one availability pattern and one tumor region.
-
-| Dataset / reference evaluation | Unique patients | Patterns | Region-level records | Single-empty records | Double-empty records | Non-finite HD95 records | Completely missed non-empty-GT records retained |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| BraTS2023 | 249 | 15 | 11205 | 196 | 89 | 0 | 105 |
-| BraTS2021 | 125 | 15 | 5625 | 81 | 9 | 0 | 30 |
-
-Every single-empty record in these two CSVs has DSC=0 and finite positive HD95; every double-empty record has DSC=1 and HD95=0. The recorded single-empty counts by region are WT/TC/ET = 3/48/145 for BraTS2023 and 0/12/69 for BraTS2021.
-
-The BraTS2023 empty-mask counts can also be separated as follows. GT-empty and prediction-empty counts each include double-empty records. Single-empty means that exactly one of prediction and GT is empty; completely missed non-empty GT means GT is non-empty and prediction is empty.
-
-| BraTS2023 region | GT-empty records | Prediction-empty records | Double-empty records | Single-empty records | Completely missed non-empty-GT records |
-|---|---:|---:|---:|---:|---:|
-| WT | 0 | 3 | 0 | 3 | 3 |
-| TC | 0 | 48 | 0 | 48 | 48 |
-| ET | 180 | 143 | 89 | 145 | 54 |
-| Total | 180 | 194 | 89 | 196 | 105 |
-
-These are case-pattern-region records. The 12 ET-empty test patients contribute 12×15 = 180 GT-empty ET records. The 89 double-empty ET records and 91 GT-empty/prediction-nonempty ET records together account for those 180 records.
-
-GT-nonempty filtering retains false-negative predictions. All-case and GT-nonempty results must be derived from the same case list, predictions and evaluation protocol. Dataset-dependent summaries, including individual availability patterns, missing-modality groups and any uncertainty or significance estimates, require the same fixed partition.
-
 ### Evidence files
 
 - Current BraTS2023 audit covers all 875 training-label headers and all 249 test ground-truth masks. Augmentation replays use two samples from the current training partition.
