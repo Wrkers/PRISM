@@ -209,26 +209,6 @@ For case i, `shape = (H_i,W_i,D_i)` is the spatial shape of its saved, preproces
 
 All 196 single-empty records were checked against their case-specific evaluated-grid diagonals. The optimized surface-distance routine handles empty masks on the entire evaluated grid before applying its local bounding-box optimization to double-nonempty masks. For ET, the 91 GT-empty/prediction-nonempty records have a mean penalty of 253.017124 mm; the 54 GT-nonempty/prediction-empty records have a mean penalty of 255.777422 mm. Their combined 145-record mean is 254.045097 mm. These are record-weighted summaries of case-specific values.
 
-#### Current BraTS2023 partition and ground-truth region counts
-
-The BraTS2023 patient-disjoint partition was audited on 2026-11-07. Patient identifiers group all time points of the same patient. Training, validation and test sets have no overlapping scan identifiers or patient identifiers.
-
-| Partition | Scans | Unique patients |
-|---|---:|---:|
-| Training | 875 | 757 |
-| Validation | 125 | 125 |
-| Testing | 249 | 249 |
-| Total | 1249 | 1131 |
-
-The current BraTS2023 counts below were obtained by reading all 249 test segmentation masks. WT contains labels greater than 0, TC contains labels 1 or 3, and ET contains label 3. ET is empty in 12 cases (4.82%).
-
-| Dataset / cohort | Total patients | WT non-empty GT | TC non-empty GT | ET non-empty GT |
-|---|---:|---:|---:|---:|
-| BraTS2023, current patient-disjoint test cohort | 249 | 249 | 249 | 237 |
-| BraTS2021, archived evaluation cohort | 125 | 125 | 125 | 121 |
-
-The BraTS2023 ground-truth counts and the saved-record audit below refer to the 249 test scans in the 875/125/249 partition. The metric entries in the following table retain their manuscript source.
-
 #### All-case and GT-nonempty results
 
 The DSC and HD95 entries in this table are retained from the manuscript at their existing precision. The manuscript identifies the BraTS2023 data partition by seed 42; BraTS2021 uses its seed-999 reference evaluation. Record-count and penalty evidence in the following audit sections is scoped to the independently identified prediction CSV and evaluation manifest.
