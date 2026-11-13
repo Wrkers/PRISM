@@ -244,7 +244,7 @@ For each region, the GT-nonempty subset contains patients with at least one grou
 | BraTS2023 | ET | 237 / 249 | 75.1 | 75.6 | 13.3 | 7.5 |
 | BraTS2021 | WT | 125 / 125 | 89.7 | 89.7 | 5.5 | 5.5 |
 | BraTS2021 | TC | 125 / 125 | 83.5 | 83.5 | 6.7 | 6.7 |
-| BraTS2021 | ET | 121 / 125 | 71.9 | 73.8 | 13.8 | 7.2 |
+| BraTS2021 | ET | 121 / 125 | 72.7 | 73.8 | 13.8 | 7.2 |
 
 #### Saved-record verification
 
